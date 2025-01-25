@@ -4,24 +4,18 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"path/filepath"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 )
 
-func UploadAndGetURL(ctx context.Context, client *s3.Client, filePath, bucket, prefix string, expires time.Duration) (string, error) {
+func UploadAndGetURL(ctx context.Context, client *s3.Client, filePath, bucket, key string, expires time.Duration) (string, error) {
 	file, err := os.Open(filePath)
 	if err != nil {
 		return "", fmt.Errorf("failed to open file: %w", err)
 	}
 	defer file.Close()
-
-	key := filepath.Join(prefix, filepath.Base(filePath))
-	if prefix == "" {
-		key = filepath.Base(filePath)
-	}
 
 	// Upload the file
 	_, err = client.PutObject(ctx, &s3.PutObjectInput{
