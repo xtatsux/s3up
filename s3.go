@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"io"
 	"os"
 	"time"
 
@@ -10,6 +11,21 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/schollz/progressbar/v3"
 )
+
+// progressReader wraps an io.Reader and updates a progress bar
+type progressReader struct {
+	reader     io.Reader
+	size       int64
+	bar        *progressbar.ProgressBar
+}
+
+func (r *progressReader) Read(p []byte) (int, error) {
+	n, err := r.reader.Read(p)
+	if n > 0 {
+		r.bar.Add(n)
+	}
+	return n, err
+}
 
 func UploadAndGetURL(ctx context.Context, client *s3.Client, filePath, bucket, key string, expires time.Duration) (string, error) {
 	file, err := os.Open(filePath)
@@ -30,14 +46,20 @@ func UploadAndGetURL(ctx context.Context, client *s3.Client, filePath, bucket, k
 		"uploading",
 	)
 
-	// Create a wrapper reader that updates the progress bar
-	reader := progressbar.NewReader(file, bar)
+	// Create a custom progress reader
+	reader := &progressReader{
+		reader: file,
+		size:   fileInfo.Size(),
+		bar:    bar,
+	}
 
 	// Upload the file with progress bar
+	size := fileInfo.Size()
 	_, err = client.PutObject(ctx, &s3.PutObjectInput{
-		Bucket: aws.String(bucket),
-		Key:    aws.String(key),
-		Body:   &reader,
+		Bucket:        aws.String(bucket),
+		Key:           aws.String(key),
+		Body:          reader,
+		ContentLength: &size, // Pass pointer to size
 	})
 	if err != nil {
 		return "", fmt.Errorf("failed to upload file: %w", err)
