@@ -8,6 +8,7 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
+	"github.com/schollz/progressbar/v3"
 )
 
 func UploadAndGetURL(ctx context.Context, client *s3.Client, filePath, bucket, key string, expires time.Duration) (string, error) {
@@ -17,11 +18,26 @@ func UploadAndGetURL(ctx context.Context, client *s3.Client, filePath, bucket, k
 	}
 	defer file.Close()
 
-	// Upload the file
+	// Get file size for progress bar
+	fileInfo, err := file.Stat()
+	if err != nil {
+		return "", fmt.Errorf("failed to get file info: %w", err)
+	}
+
+	// Create progress bar
+	bar := progressbar.DefaultBytes(
+		fileInfo.Size(),
+		"uploading",
+	)
+
+	// Create a wrapper reader that updates the progress bar
+	reader := progressbar.NewReader(file, bar)
+
+	// Upload the file with progress bar
 	_, err = client.PutObject(ctx, &s3.PutObjectInput{
 		Bucket: aws.String(bucket),
 		Key:    aws.String(key),
-		Body:   file,
+		Body:   &reader,
 	})
 	if err != nil {
 		return "", fmt.Errorf("failed to upload file: %w", err)

@@ -9,6 +9,7 @@ s3up is a command-line tool that simplifies uploading files to AWS S3 and genera
 - Support for AWS CLI profiles
 - Support for AWS credentials via environment variables
 - Configurable default bucket, prefix, and URL expiration settings
+- Progress bar display during file uploads
 
 ## Prerequisites
 
